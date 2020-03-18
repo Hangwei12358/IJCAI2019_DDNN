@@ -10,17 +10,14 @@ import network_ucihar as net
 import data_preprocess_ucihar
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import tqdm
 import argparse
-from constants import *
 from utils import *
 import os
-if not os.path.exists(model_path):
-    os.mkdir(model_path)
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 result = []
 acc_all = []
+LOSS_FN_WEIGHT = 1e-5
 
 def train_ucihar_fixed(model, optimizer, train_loader, test_loader, now_model_name, args):
     feature_dim = args.n_feature
@@ -38,10 +35,6 @@ def train_ucihar_fixed(model, optimizer, train_loader, test_loader, now_model_na
         total = 0
 
         for index, (sample, target) in enumerate(train_loader):
-            if index == 0:
-                unique_ytrain, counts_ytrain = np.unique(target, return_counts=True)
-                print(index, 'th ', 'sample label distribution: ', dict(zip(unique_ytrain, counts_ytrain)))
-
             sample, target = sample.to(DEVICE).float(), target.to(DEVICE).long()
             now_len = sample.shape[3]
             sample = sample.view(-1, feature_dim, now_len)
@@ -85,7 +78,6 @@ def train_ucihar_fixed(model, optimizer, train_loader, test_loader, now_model_na
                 sample = sample.view(-1, feature_dim, now_len)
                 sample, target = sample.to(DEVICE).float(), target.to(DEVICE).long()
 
-
                 output, out_decoder = model(sample)
                 _, predicted = torch.max(output.data, 1)
                 total += target.size(0)
@@ -101,10 +93,8 @@ def train_ucihar_fixed(model, optimizer, train_loader, test_loader, now_model_na
         # event: accuracy, micro-F1, macro-F1
         # frame: accuracy, micro-F1, macro-F1
         event_acc, event_miF, event_maF, frame_acc, frame_miF, frame_maF = measure_event_frame(predicted_label_segment, lengths_varying_segment, true_label_segment)
-        # best accuracy record, by hangwei
         acc_all.append([event_acc, event_miF, event_maF, frame_acc, frame_miF, frame_maF])
         acc_all_T = np.array(acc_all).T.tolist()
-
 
         best_e_miF = max([row[1] for row in acc_all])
         best_iter = acc_all_T[1].index(best_e_miF) + 1
@@ -133,9 +123,8 @@ parser.add_argument('--n_lstm_layer', type=int, default=2, help='number of lstm 
 parser.add_argument('--n_lstm_hidden', type=int, default=128, help= 'number of lstm hidden dim, default 64')
 parser.add_argument('--batch_size', type=int, default=64, help='batch size of training')
 parser.add_argument('--n_epoch', type=int, default=100, help='number of training epochs')
-parser.add_argument('--dataset', type=str, default='ucihar', choices=['oppor','ucihar'], help='name of dataset')
+parser.add_argument('--dataset', type=str, default='ucihar', help='name of dataset')
 
-# arguments to make code more concise across different datasets
 parser.add_argument('--n_feature', type=int, default=9, help='name of feature dimension')
 parser.add_argument('--len_sw', type=int, default=128, help='length of sliding window')
 parser.add_argument('--n_class', type=int, default=6, help='number of class')
@@ -166,9 +155,7 @@ if __name__ == '__main__':
         f.write('now_model_name: ' + args.now_model_name + '\t e_acc: ' + str(best_e_acc) + '\t e_miF: ' + str(
             best_e_miF) + '\t e_maF: ' + str(best_e_maF)
                 + '\t f_acc: ' + str(best_f_acc) + '\t f_miF: ' + str(best_f_miF) + '\t f_maF: ' + str(
-            best_f_maF) + '\t best_iter: ' + str(best_iter)
+            best_f_maF) + '\t best_iter: ' + str(best_iter)  + '\t d_AE: ' + str(args.d_AE)
                 + '\t n_lstm_hidden: ' + str(args.n_lstm_hidden) + '\t n_lstm_layer: ' + str(args.n_lstm_layer)
                 + '\t batch_size: ' + str(args.batch_size) + '\t n_epoch: ' + str(args.n_epoch) + '\n\n')
     plot(result_name)
-
-    print('Done!\n')

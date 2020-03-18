@@ -8,6 +8,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 class DDNN(nn.Module):
     def __init__(self, args):
         super(DDNN, self).__init__()
@@ -64,9 +66,10 @@ class DDNN(nn.Module):
             nn.MaxPool2d(kernel_size=(1, 2), stride=2)
         )
 
+
         ## fc part after concat of three networks
         self.fc1 = nn.Sequential(
-            nn.Linear(in_features=(2*self.n_lstm_hidden + self.d_AE + 64), out_features=1000),
+            nn.Linear(in_features=(2*self.n_lstm_hidden + self.d_AE + 640), out_features=1000),
             nn.ReLU()
         )
         self.fc2 = nn.Sequential(
@@ -81,7 +84,7 @@ class DDNN(nn.Module):
         out_encoder = self.encoder(x.view(x.size(0), -1))
         out_decoder = self.decoder(out_encoder)
 
-        out_rnn, _ = self.lstm(x.view(x.shape[0], -1, self.n_feature)) # (64, 100, 9)
+        out_rnn, _ = self.lstm(x.permute(0, 2, 1)) # (64, 100, 9)
         out_rnn = out_rnn[:, -1, :]
 
         out_rnn_spatial, _ = self.lstm_spatial(x.view(x.shape[0], self.n_feature, -1))  # (64, 9, 100)

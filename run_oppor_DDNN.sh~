@@ -1,0 +1,41 @@
+ulimit -c unlimited 
+ ulimit unlimited 
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 1 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 1 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 1 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 1 --n_lstm_hidden 64 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 1 --n_lstm_hidden 64 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 1 --n_lstm_hidden 64 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 1 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 1 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 1 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 1 --n_lstm_hidden 256 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 1 --n_lstm_hidden 256 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 1 --n_lstm_hidden 256 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 2 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 2 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 2 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 2 --n_lstm_hidden 64 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 2 --n_lstm_hidden 64 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 2 --n_lstm_hidden 64 &
+wait
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 2 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 2 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 2 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 2 --n_lstm_hidden 256 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 2 --n_lstm_hidden 256 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 2 --n_lstm_hidden 256 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 3 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 3 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 3 --n_lstm_hidden 32 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 3 --n_lstm_hidden 64 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 3 --n_lstm_hidden 64 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 3 --n_lstm_hidden 64 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 3 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 3 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 3 --n_lstm_hidden 128 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 10 --n_lstm_layer 3 --n_lstm_hidden 256 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 30 --n_lstm_layer 3 --n_lstm_hidden 256 &
+python main_oppor.py --n_epoch 100 --now_model_name DDNN --d_AE 50 --n_lstm_layer 3 --n_lstm_hidden 256 &
+wait
+wait

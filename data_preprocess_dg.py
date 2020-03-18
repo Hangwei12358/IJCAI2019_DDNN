@@ -10,8 +10,7 @@ import torch
 import pickle as cp
 from pandas import Series
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-from sliding_window import sliding_window
+from utils import get_sample_weights, opp_sliding_window
 
 # dataset DG's number of features
 NUM_FEATURES = 9
@@ -33,7 +32,7 @@ def load_data_dg():
     data_dir = './data/'
     saved_filename = 'dg_processed.data'
     if os.path.isfile( data_dir + saved_filename ) == True:
-        data = np.load(data_dir + saved_filename)
+        data = np.load(data_dir + saved_filename, allow_pickle=True)
         X_train = data[0][0]
         y_train = data[0][1]
         X_val = data[1][0]
@@ -86,30 +85,12 @@ def load_data_dg():
         X_test, y_test = load_data_files(label, DG_DATA_FILES_TEST)
         print("Final datasets with size: | train {0} | test {1} | ".format(X_train.shape, X_test.shape))
 
-        # conduct downsampling if you want to match frequencies of different datasets
-        # X_train, y_train = downsampling(X_train, y_train)
-        # X_val, y_val = downsampling(X_val, y_val)
-        # X_test, y_test = downsampling(X_test, y_test)
-
         obj = [(X_train, y_train), (X_val, y_val), (X_test, y_test)]
-        # file is not supported in python3, use open instead
         f = open(os.path.join(data_dir, saved_filename), 'wb')
         cp.dump(obj, f, protocol=cp.HIGHEST_PROTOCOL)
         f.close()
     return X_train, y_train, X_val, y_val, X_test, y_test
 
-
-def downsampling(data_x, data_y):
-    """Recordings are downsamplied to 33Hz, as in the Opportunity dataset
-    :param data_x: numpy integer array
-        sensor recordings
-    :param data_y: numpy integer array
-        labels
-    :return: numpy integer array
-        Downsampled input
-    """
-    idx = np.arange(0, data_x.shape[0], 3)
-    return data_x[idx], data_y[idx]
 
 def load_data_files(label, data_files):
     """Loads specified data files' features (x) and labels (y)
@@ -137,7 +118,6 @@ def load_data_files(label, data_files):
         except KeyError:
             print('ERROR: Did not find {0} in zip file'.format(filename))
     return data_x, data_y
-
 
 
 def process_dataset_file(data, label):
@@ -228,16 +208,10 @@ def normalize(x):
     x -= m
     std = np.std(x, axis=0)
     std += 0.000001
-    # x /= (std * 2)  # 2 is for having smaller values
-    # modified by hangwei
+
     x /= std
     return x
 
-# learn from DeepConvLSTM
-def opp_sliding_window(data_x, data_y, ws, ss): # window size, step size
-    data_x = sliding_window(data_x,(ws,data_x.shape[1]),(ss,1))
-    data_y = np.asarray([[i[-1]] for i in sliding_window(data_y,ws,ss)])
-    return data_x.astype(np.float32), data_y.reshape(len(data_y)).astype(np.uint8)
 
 
 def load_dataset_dg(dataset="dg", batch_size=64, SLIDING_WINDOW_LEN=0, SLIDING_WINDOW_STEP=0):
@@ -246,34 +220,14 @@ def load_dataset_dg(dataset="dg", batch_size=64, SLIDING_WINDOW_LEN=0, SLIDING_W
         x_train, y_train, x_val, y_val, x_test, y_test = load_data_dg()  # (557963, 113), (557963,), (118750, 113), (118750, )
 
         x_train_win, y_train_win = opp_sliding_window(x_train, y_train, SLIDING_WINDOW_LEN, SLIDING_WINDOW_STEP)
-        print(" ..after sliding window (training): inputs {0}, targets {1}".format(x_train_win.shape, y_train_win.shape))
-
         x_val_win, y_val_win = opp_sliding_window(x_val, y_val, SLIDING_WINDOW_LEN, SLIDING_WINDOW_STEP)
-        print(
-            " ..after sliding window (val): inputs {0}, targets {1}".format(x_val_win.shape, y_val_win.shape))
-
         x_test_win, y_test_win = opp_sliding_window(x_test, y_test, SLIDING_WINDOW_LEN, SLIDING_WINDOW_STEP)
-        print(" ..after sliding window (testing): inputs {0}, targets {1}".format(x_test_win.shape, y_test_win.shape))
-
-        # get the info of the dataset
-        unique_ytrain, counts_ytrain = np.unique(y_train, return_counts=True)
-        print('y_train label distribution: ', dict(zip(unique_ytrain, counts_ytrain)))
-        unique_ytest, counts_ytest = np.unique(y_test, return_counts=True)
-        print('y_test label distribution: ', dict(zip(unique_ytest, counts_ytest)))
-        unique_all, counts_all = np.unique(np.concatenate((y_train, y_test), axis=0), return_counts=True)
-        print('y_all label distribution: ', dict(zip(unique_all, counts_all)))
 
         unique_ytrain, counts_ytrain = np.unique(y_train_win, return_counts=True)
-        print('y_train label distribution: ', dict(zip(unique_ytrain, counts_ytrain)))
-        unique_ytest, counts_ytest = np.unique(y_test_win, return_counts=True)
-        print('y_test label distribution: ', dict(zip(unique_ytest, counts_ytest)))
-        unique_all, counts_all = np.unique(np.concatenate((y_train_win, y_test_win), axis=0), return_counts=True)
-        print('y_all label distribution: ', dict(zip(unique_all, counts_all)))
 
         weights = 100.0 / torch.Tensor(counts_ytrain)
-        print('weights of sampler: ', weights)
         weights = weights.double()
-        sample_weights = weights[y_train_win]
+        sample_weights = get_sample_weights(y_train_win, weights)
 
         sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
 
@@ -281,7 +235,6 @@ def load_dataset_dg(dataset="dg", batch_size=64, SLIDING_WINDOW_LEN=0, SLIDING_W
         val_set = data_loader_dg(x_val_win, y_val_win)
         test_set = data_loader_dg(x_test_win, y_test_win)
 
-        # shuffle is forced to be False when sampler is available
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=False, drop_last=True, sampler=sampler)
         val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
         test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)

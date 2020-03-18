@@ -138,11 +138,6 @@ def load_balancedUp(batch_size=64):
     x_train, x_test = np.transpose(x_train.reshape((-1, 1, 128, 9)), (0,3,1,2)), np.transpose(x_test.reshape((-1, 1, 128, 9)), (0,3,1,2))
 
     unique_ytrain, counts_ytrain = np.unique(y_train, return_counts=True)
-    print('y_train label distribution: ', dict(zip(unique_ytrain, counts_ytrain)))
-    unique_ytest, counts_ytest = np.unique(y_test, return_counts=True)
-    print('y_test label distribution: ', dict(zip(unique_ytest, counts_ytest)))
-    unique_all, counts_all = np.unique(np.concatenate((y_train, y_test), axis=0), return_counts=True)
-    print('y_all label distribution: ', dict(zip(unique_all, counts_all)))
 
     weights = 100.0 / torch.Tensor(counts_ytrain)
     print('weights of sampler: ', weights)
@@ -151,7 +146,6 @@ def load_balancedUp(batch_size=64):
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights),
                                                              replacement=True)
     transform = transforms.Compose([
-        # transforms.ToTensor(),
         transforms.Normalize(mean=(0,0,0,0,0,0,0,0,0), std=(1,1,1,1,1,1,1,1,1))
     ])
 

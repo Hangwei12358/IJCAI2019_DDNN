@@ -2,26 +2,26 @@
 """
     Created on 2018/12/10
     @author: Hangwei Qian
+
 """
 import matplotlib
 matplotlib.use('Agg')
-
-import network_dg as net
-import data_preprocess_dg
+import data_preprocess_oppor
+import network_oppor as net
 import torch
 import torch.nn as nn
 import tqdm
 import argparse
 from utils import *
 import os
+
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 result = []
 acc_all = []
 LOSS_FN_WEIGHT = 1e-5
 
 
-def train_dg_fixed(model, optimizer, train_loader, test_loader, now_model_name, args):
-    feature_dim = args.n_feature  # for dg dataset
+def train_fixed(model, optimizer, train_loader, test_loader, result_name, args):
     n_batch = len(train_loader.dataset) // args.batch_size
     criterion = nn.CrossEntropyLoss()
     criterion_ae = nn.MSELoss()
@@ -33,19 +33,18 @@ def train_dg_fixed(model, optimizer, train_loader, test_loader, now_model_name, 
         model.train()
         correct, total_loss = 0, 0
         total = 0
-
         for index, (sample, target) in enumerate(train_loader):
             sample, target = sample.to(DEVICE).float(), target.to(DEVICE).long()
             now_len = sample.shape[1]
-            sample = sample.view(-1, feature_dim, now_len)
+            sample = sample.view(-1, args.n_feature, now_len)
             sample, target = sample.to(DEVICE).float(), target.to(DEVICE).long()
             output, out_decoder = model(sample)
 
             loss_classify = criterion(output, target)
             loss_ae = criterion_ae(sample.view(sample.size(0), -1), out_decoder)
-            loss_mmd = mmd_custorm(sample.view(sample.size(0), -1), out_decoder, [args.sigma])
+            loss_mmd = mmd_custorm(sample.view(sample.size(0), -1), out_decoder)
             loss_mmd = loss_mmd.to(DEVICE).float()
-            loss = loss_classify + LOSS_FN_WEIGHT * loss_ae + args.weight_mmd*loss_mmd
+            loss = loss_classify + LOSS_FN_WEIGHT * loss_ae + loss_mmd
 
             optimizer.zero_grad()
             loss.backward()
@@ -56,8 +55,8 @@ def train_dg_fixed(model, optimizer, train_loader, test_loader, now_model_name, 
             correct += (predicted == target).sum()
 
             if index % 20 == 0:
-                tqdm.tqdm.write('Epoch: [{}/{}], Batch: [{}/{}], loss_ae:{:.4f}, loss_mmd:{:.4f}, loss_classify:{:.4f}, loss_total:{:.4f}'.format(e + 1, args.n_epoch, index + 1, n_batch,
-                loss_ae.item(), loss_mmd.item(), loss_classify.item(), loss.item()))
+                tqdm.tqdm.write('Epoch: [{}/{}], Batch: [{}/{}], loss_mmd:{:.4f}, loss_ae:{:.4f}, loss_classify:{:.4f}, loss_total:{:.4f}'.format(e + 1, args.n_epoch, index + 1, n_batch,
+                                                                loss_mmd.item(),  loss_ae.item(), loss_classify.item(), loss.item()))
         acc_train = float(correct) * 100.0 / (args.batch_size * n_batch)
         tqdm.tqdm.write(
             'Epoch: [{}/{}], loss: {:.4f}, train acc: {:.2f}%'.format(e + 1, args.n_epoch, total_loss * 1.0 / n_batch, acc_train))
@@ -71,24 +70,26 @@ def train_dg_fixed(model, optimizer, train_loader, test_loader, now_model_name, 
             for sample, target in test_loader:
                 sample, target = sample.to(DEVICE).float(), target.to(DEVICE).long()
                 now_len = sample.shape[1]
-                # this line would cause error since the batch of last iteration does not have batch_size entries. so use DropLast = True when prep for dataloader
-                sample = sample.view(-1, feature_dim, now_len)
+                sample = sample.view(-1, args.n_feature, now_len)
                 sample, target = sample.to(DEVICE).float(), target.to(DEVICE).long()
 
                 output, out_decoder = model(sample)
                 _, predicted = torch.max(output.data, 1)
                 total += target.size(0)
                 correct += (predicted == target).sum()
+
                 lengths_varying = [sample.shape[2]] * sample.shape[0]
                 lengths_varying = torch.LongTensor(lengths_varying)
                 predicted_label_segment = torch.LongTensor(torch.cat((predicted_label_segment, predicted.cpu()), dim=0))
                 lengths_varying_segment = torch.LongTensor(torch.cat((lengths_varying_segment, lengths_varying), dim=0))
                 true_label_segment = torch.LongTensor(torch.cat((true_label_segment, target.cpu()), dim=0))
 
+
         # calculate different measurements
         # event: accuracy, micro-F1, macro-F1
         # frame: accuracy, micro-F1, macro-F1
         event_acc, event_miF, event_maF, frame_acc, frame_miF, frame_maF = measure_event_frame(predicted_label_segment, lengths_varying_segment, true_label_segment)
+
         acc_all.append([event_acc, event_miF, event_maF, frame_acc, frame_miF, frame_maF])
         acc_all_T = np.array(acc_all).T.tolist()
 
@@ -103,50 +104,44 @@ def train_dg_fixed(model, optimizer, train_loader, test_loader, now_model_name, 
         if sum(predicted_label_segment) == 0:
             print('Note: All predicted labels are 0 in this epoch!\n')
 
-        tqdm.tqdm.write(
-            'Epoch: [{}/{}], e acc:{:.2f}%, e_miF:{:.2f}%, e maF:{:.2f}%, f acc:{:.2f}%, f miF:{:.2f}%, f maF:{:.2f}%, best acc:{:.2f}%, iter:{}'.format(
-                e + 1, args.n_epoch, event_acc, event_miF, event_maF, frame_acc, frame_miF, frame_maF, best_e_acc,
-                best_iter))
+        tqdm.tqdm.write('Epoch: [{}/{}], e acc:{:.2f}%, e_miF:{:.2f}%, e maF:{:.2f}%, f acc:{:.2f}%, f miF:{:.2f}%, f maF:{:.2f}%, best acc:{:.2f}%, iter:{}'.format(
+            e + 1, args.n_epoch, event_acc, event_miF, event_maF, frame_acc, frame_miF, frame_maF, best_e_acc, best_iter))
+
         result.append([acc_train, event_acc, event_miF, event_maF, frame_acc, frame_miF, frame_maF, best_e_acc, best_iter])
         result_np = np.array(result, dtype=float)
         np.savetxt(result_name, result_np, fmt='%.2f', delimiter=',')
-
     return best_e_acc, best_e_miF, best_e_maF, best_f_acc, best_f_miF, best_f_maF, best_iter
 
 
 parser = argparse.ArgumentParser(description='argument setting of network')
 parser.add_argument('--now_model_name', type=str, default='DDNN', help='the type of model, default DDNN')
 parser.add_argument('--n_lstm_layer', type=int, default=1, help='number of lstm layers,default 2')
-parser.add_argument('--n_lstm_hidden', type=int, default=64, help= 'number of lstm hidden dim, default 64')
+parser.add_argument('--n_lstm_hidden', type=int, default=128, help= 'number of lstm hidden dim, default 64')
 parser.add_argument('--batch_size', type=int, default=64, help='batch size of training')
 parser.add_argument('--n_epoch', type=int, default=100, help='number of training epochs')
-parser.add_argument('--dataset', type=str, default='dg', help='name of dataset')
-
-parser.add_argument('--n_feature', type=int, default=9, help='name of feature dimension')
-parser.add_argument('--len_sw', type=int, default=32, help='length of sliding window')
-parser.add_argument('--n_class', type=int, default=2, help='number of class')
+parser.add_argument('--dataset', type=str, default='oppor', help='name of dataset')
 parser.add_argument('--d_AE', type=int, default=50, help='dim of AE')
-parser.add_argument('--sigma', type=float, default=1, help='parameter of mmd')
-parser.add_argument('--weight_mmd', type=float, default=1.0, help='weight of mmd loss')
+
+parser.add_argument('--n_feature', type=int, default=77, help='name of feature dimension')
+parser.add_argument('--len_sw', type=int, default=30, help='length of sliding window')
+parser.add_argument('--n_class', type=int, default=18, help='number of class')
 
 if __name__ == '__main__':
     torch.manual_seed(10)
     args = parser.parse_args()
 
-    train_loader, val_loader, test_loader = data_preprocess_dg.load_dataset_dg(batch_size=args.batch_size, SLIDING_WINDOW_LEN=32, SLIDING_WINDOW_STEP=16)
-
+    train_loader, validation_loader, test_loader = data_preprocess_oppor.load_fixed_slidwin_balancedUp(dataset=args.dataset, batch_size=args.batch_size,SLIDING_WINDOW_LEN=30, SLIDING_WINDOW_STEP=15)
     model = net.DDNN(args).to(DEVICE)
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
     result_name = 'results/' + args.dataset + '/' + str(args.n_epoch) + '_' + str(args.batch_size) + '_' + args.now_model_name + '_' + str(args.n_lstm_hidden) + '_' + str(args.n_lstm_layer) + '.csv'
-
     if not os.path.exists('results/' + args.dataset):
         os.makedirs('results/' + args.dataset)
     if not os.path.isfile(result_name):
         with open(result_name, 'w') as my_empty_csv:
             pass
 
-    best_e_acc, best_e_miF, best_e_maF, best_f_acc, best_f_miF, best_f_maF, best_iter = train_dg_fixed(model, optimizer, train_loader, test_loader, result_name, args)
+    best_e_acc, best_e_miF, best_e_maF, best_f_acc, best_f_miF, best_f_maF, best_iter = train_fixed(model, optimizer, train_loader, test_loader, result_name, args)
+
     dataset_name = "{}".format(args.dataset)
     with open('results/{}/best_result_{}.txt'.format(dataset_name, dataset_name), 'a') as f:
         f.write('now_model_name: ' + args.now_model_name + '\t e_acc: ' + str(best_e_acc) + '\t e_miF: ' + str(
@@ -156,4 +151,3 @@ if __name__ == '__main__':
                 + '\t n_lstm_hidden: ' + str(args.n_lstm_hidden) + '\t n_lstm_layer: ' + str(args.n_lstm_layer)
                 + '\t batch_size: ' + str(args.batch_size) + '\t n_epoch: ' + str(args.n_epoch) + '\n\n')
     plot(result_name)
-
