@@ -45,7 +45,7 @@ def get_scale_matrix(M, N):
     s2 = torch.ones((M, 1)) * -1.0 / M
     return torch.cat((s1, s2), 0)
 
-def mmd_custorm(sample, decoded, sigma=[1]):
+def mmd_custorm(sample, decoded, sigma=[0.01, 0.1, 1, 10, 100]):
     # decoded = Variable(decoded).to(device)
     X = torch.cat((decoded, sample), 0)
     XX = torch.matmul(X, X.t())
